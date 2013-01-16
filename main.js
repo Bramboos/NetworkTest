@@ -36,6 +36,7 @@ process.argv.forEach(function (val, index, array) {
 });
 
 function whileSend(){
+	var message = new Buffer(parseInt(settings.size));
 	client.send(message, 0, message.length, settings.server_port, settings.server_ip, function(err, size) {
 		return whileSend()
 	})
@@ -46,16 +47,13 @@ if(settings.mode == 'client') {
 	console.log('Client started')
 	var client = dgram.createSocket("udp4");
 	var timer = 0;
-	client.bind(settings.client_port);
-
-	var message = new Buffer(parseInt(settings.size));
-	var msg = new Buffer(JSON.stringify({'amount' : settings.amount}));
-
-	console.log('Send settings to server')
-	client.send(msg, 0, msg.length, settings.server_port, settings.server_ip)
+	
+	var msg = new Buffer(JSON.stringify({'amount' : settings.amount, 'client_ip': client.address().address}));
 
 	client.on("listening", function () {
 	  console.log('Client started listening')
+	  client.send(msg, 0, msg.length, settings.server_port, settings.server_ip)
+	  console.log('Send settings to server')
 	});
 
 	client.on('message', function(msg){
@@ -85,6 +83,8 @@ if(settings.mode == 'client') {
 			}
 	})
 
+	client.bind(settings.client_port);
+
 	
 }
 
@@ -111,6 +111,7 @@ if(settings.mode == 'server') {
 
 			if(typeof(setting) == 'object') {
 				console.log('Got settings from client')
+				settings.client_ip = setting.client_ip
 				settings.amount = setting.amount
 				settings.ready = false
 				packets = 0
