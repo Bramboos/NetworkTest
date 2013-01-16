@@ -76,6 +76,7 @@ if(settings.mode == 'client') {
 					process.exit(code=0)
 				}
 				if(obj.ready) {
+					console.log('Got ready to send from server')
 					timer = 0;
 					setInterval(function(){ timer++ },1)
 					whileSend()
