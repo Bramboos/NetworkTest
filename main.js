@@ -7,11 +7,10 @@ var settings = {
 	'client_ip': '127.0.0.1',
 	'server_port': 1234,
 	'client_port': 1235,
-	'size': 1000,
-	'ready': false
+	'size': 1000
 }
 
-process.argv.forEach(function (val, index, array) {
+process.argv.forEach(function (val, index) {
   if(val == '--client') {
   	settings.mode = 'client'
   } else if(val == '--server'){
@@ -36,24 +35,24 @@ process.argv.forEach(function (val, index, array) {
 });
 
 function whileSend(){
-	var message = new Buffer(parseInt(settings.size));
+	var message = new Buffer(parseInt(settings.amount));
 	client.send(message, 0, message.length, settings.server_port, settings.server_ip, function(err, size) {
 		return whileSend()
 	})
 }
 
-
 if(settings.mode == 'client') {
 	console.log('Client started')
 	var client = dgram.createSocket("udp4");
 	var timer = 0;
-	
-	var msg = new Buffer(JSON.stringify({'amount' : settings.amount, 'client_ip': client.address().address}));
+
+	var msg = new Buffer(JSON.stringify({'amount' : settings.amount }));
 
 	client.on("listening", function () {
 	  console.log('Client started listening')
-	  client.send(msg, 0, msg.length, settings.server_port, settings.server_ip)
-	  console.log('Send settings to server')
+	  client.send(msg, 0, msg.length, settings.server_port, settings.server_ip, function(){
+	  	console.log('Send settings to server')
+	  })
 	});
 
 	client.on('message', function(msg){
@@ -65,9 +64,8 @@ if(settings.mode == 'client') {
 		}
 			if(typeof(obj) == 'object') {
 				if(obj.done) {
-					console.log('Klaaaaar')
 					console.log(settings.amount + ' packets sent in ' + timer + ' ms')
-					//bytes/s
+
 					var total = settings.amount * settings.size;
 					var totalSizeSecond = Math.round(((total * 0.0009765625)/(timer/1000)))
 					console.log( totalSizeSecond + ' Kb/s (' + Math.round((totalSizeSecond * 0.009765625)) + ' Mb/s)')
@@ -78,14 +76,13 @@ if(settings.mode == 'client') {
 					timer = 0;
 					setInterval(function(){ timer++ },1)
 					whileSend()
-					console.log('Sending packets');
+					console.log('Sending packets, please wait...');
 				}
 			}
 	})
 
 	client.bind(settings.client_port);
 
-	
 }
 
 if(settings.mode == 'server') {
@@ -94,7 +91,7 @@ if(settings.mode == 'server') {
 
 	server.on("message", function (msg, rinfo) {
 		if(rinfo.size > 60) {
-			console.log('Got a packet with size: ' + rinfo.size)
+			console.log('Got a packet with size: ' + rinfo.size);
 			packets++;
 			console.log(packets)
 			console.log(settings.amount)
@@ -111,17 +108,13 @@ if(settings.mode == 'server') {
 
 			if(typeof(setting) == 'object') {
 				console.log('Got settings from client')
-				settings.client_ip = setting.client_ip
 				settings.amount = setting.amount
-				settings.ready = false
 				packets = 0
-			}
+				settings.client_ip = rinfo.address
 
-			if(!settings.ready) {
 				console.log('Send ready to send to client')
 				var buf = new Buffer(JSON.stringify({'ready': true}));
 				server.send(buf, 0, buf.length, settings.client_port, settings.client_ip)
-				settings.ready = true;
 			}
 		}
 	});
